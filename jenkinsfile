@@ -1,0 +1,67 @@
+pipeline {
+    agent any
+    
+    tools {
+        jdk 'jdk17'
+        maven 'maven'
+    }
+    
+    
+    stages {
+        stage('SCM') {
+            steps {
+                git changelog: false, poll: false, url: 'https://github.com/mahikanmani/secretsanta-generator.git'
+            }
+        }
+        
+        stage('Compile') {
+            steps {
+                sh "mvn clean compile"
+            }
+        }
+        
+    
+        
+        stage('Build') {
+            steps {
+                sh "mvn clean install"
+            }
+        }
+        
+        stage('Removing docker'){
+            steps{
+                script{
+                    sh 'docker image prune -f'
+                }
+            }
+        }
+        
+        stage('Docker Build & Push') {
+            steps {
+                script{
+                    withCredentials([string(credentialsId: 'mahi04kanmani', variable: 'docker1')]) {
+                        
+                        sh "docker login -u mahi04kanmani -p ${docker1}"
+                        
+                        sh "docker build -t santa ."
+                        sh "docker tag santa mahi04kanmani/santa:latest"
+                        sh "docker push mahi04kanmani/santa:latest"
+                    }
+                }
+            }
+        }
+        
+        stage('Docker deploy') {
+            steps {
+                script{
+                    withCredentials([string(credentialsId: 'mahi04kanmani', variable: 'docker1')]) {
+                        
+                        sh "docker run -d --name santa12 -p 9010:8080 mahi04kanmani/santa:latest"
+                       
+                    }
+                }
+            }
+        }
+        
+    }
+}
